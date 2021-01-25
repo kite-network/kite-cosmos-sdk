@@ -721,6 +721,7 @@ func (ks keystore) writeLocalKey(name string, priv types.PrivKey, algo hd.PubKey
 
 func (ks keystore) writeInfo(info Info) error {
 	// write the info by key
+	/*
 	key := infoKey(info.GetName())
 	serializedInfo := marshalInfo(info)
 
@@ -748,6 +749,7 @@ func (ks keystore) writeInfo(info Info) error {
 	if err != nil {
 		return err
 	}
+	*/
 
 	return nil
 }

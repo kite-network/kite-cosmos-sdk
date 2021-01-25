@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-
+	"math/big"
+	
 	bip39 "github.com/cosmos/go-bip39"
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/libs/cli"
@@ -247,15 +248,52 @@ func RunAddCmd(cmd *cobra.Command, args []string, kb keyring.Keyring, inBuf *buf
 	}
 
 	if len(mnemonic) == 0 {
-		// read entropy seed straight from tmcrypto.Rand and convert to mnemonic
-		entropySeed, err := bip39.NewEntropy(mnemonicEntropySize)
-		if err != nil {
-			return err
-		}
+		
+		// KITE: This is the bigint score that we must generate an address higher than
+		var threshold, ok = new(big.Int).SetString("1846881099416088608806261766880352315376519345534", 0)
 
-		mnemonic, err = bip39.NewMnemonic(entropySeed)
-		if err != nil {
-			return err
+		fmt.Fprintln(cmd.ErrOrStderr(), "\nThreshold: ")
+		if ok == true {
+			fmt.Fprintln(cmd.ErrOrStderr(), threshold)
+		}
+		
+		var compare = 1
+		var tries = 0
+		var previousHighest, ok2 = new(big.Int).SetString("0", 0)
+		if ok2 == true {
+			fmt.Fprintln(cmd.ErrOrStderr(), "")
+		}
+		for compare > 0 {
+
+			// read entropy seed straight from tmcrypto.Rand and convert to mnemonic
+			entropySeed, err := bip39.NewEntropy(mnemonicEntropySize)
+
+			if err != nil {
+				return err
+			}
+
+			mnemonic, err = bip39.NewMnemonic(entropySeed)
+			keyInfo, err := kb.NewAccount(name, mnemonic, bip39Passphrase, hdPath, algo)
+			pubKeyBytes := keyInfo.GetPubKey().Address().Bytes()
+
+			if err != nil {
+				return err
+			}
+
+			pubKeyAsInt := new(big.Int)
+			pubKeyAsInt.SetBytes(pubKeyBytes)
+			bigstr := pubKeyAsInt.String()
+			//fmt.Fprintln(cmd.ErrOrStderr(), "\nBig Int encoding of key")
+			if (previousHighest.Cmp(pubKeyAsInt) < 0) {
+				previousHighest = pubKeyAsInt
+				fmt.Fprintln(cmd.ErrOrStderr(), "\nNew highest score: ")
+				fmt.Fprintln(cmd.ErrOrStderr(), bigstr)
+			}
+			compare = threshold.Cmp(pubKeyAsInt)
+			tries++
+			if (tries % 10000 == 0) {
+				fmt.Fprintln(cmd.ErrOrStderr(), tries)
+			}
 		}
 	}
 
@@ -306,7 +344,7 @@ func printCreate(cmd *cobra.Command, info keyring.Info, showMnemonic bool, mnemo
 
 		// print mnemonic unless requested not to.
 		if showMnemonic {
-			fmt.Fprintln(cmd.ErrOrStderr(), "\n**Important** write this mnemonic phrase in a safe place.")
+			fmt.Fprintln(cmd.ErrOrStderr(), "\n**TIMMAY** write this mnemonic phrase in a safe place.")
 			fmt.Fprintln(cmd.ErrOrStderr(), "It is the only way to recover your account if you ever forget your password.")
 			fmt.Fprintln(cmd.ErrOrStderr(), "")
 			fmt.Fprintln(cmd.ErrOrStderr(), mnemonic)
